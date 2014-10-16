@@ -1,6 +1,6 @@
 import numpy as np
-import pandas as pd
 from scipy.stats import *
+import pandas as pd
 import matplotlib.pyplot as plt
 
 def generate_cell_data(num_samples=100):
@@ -24,7 +24,7 @@ def generate_cell_data(num_samples=100):
     def ca_conc(dia, treatment):
         base_ca = (np.random.randn() + dia) / 6.0
         return base_ca + treatment*np.random.poisson()
-        
+
     #mean lifetime of cell in days as a function of cell type
     mean_lifetime_by_type = np.array([1.0, 1.5, 2.0, 4.0])
 
@@ -32,30 +32,31 @@ def generate_cell_data(num_samples=100):
     data = {'treated':list(), 'type':list(), 'diameter':list(), 'calcium':list(), 'lifetime':list()}
     for n in range(num_samples):
         #sample whether or not the cell was treated
-        treated = np.random.rand() > p_treated
-        
+        treated = np.random.rand() < p_treated
+
         #sample the cell type
         cell_type = np.where(type_cdf >= np.random.rand())[0].min()
-        
+
         #sample the diameter
         dia = np.random.randn()*diameter_std + diameter_mean
-        
+
         #sample the calcium concentration
         ca = ca_conc(dia, treated)
 
         #sample cell lifetime
         w1 = 1.0
-        w2 = -0.16
-        lifetime = np.random.exponential(mean_lifetime_by_type[cell_type])
+        w2 = 0.16
+        lifetime = np.random.exponential(w1*mean_lifetime_by_type[cell_type] + w2*ca)
 
         #append the data
         data['treated'].append(treated)
-        data['type'].append(cell_type)    
+        data['type'].append(cell_type)
         data['diameter'].append(dia)
         data['calcium'].append(ca)
         data['lifetime'].append(lifetime)
-    
+
     return pd.DataFrame(data)
+
 
 def hist2d_plots(df, var1="diameter", var2="calcium"):
     
