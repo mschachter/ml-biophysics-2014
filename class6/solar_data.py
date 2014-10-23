@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from sklearn.linear_model import Ridge
+from sklearn.cross_validation import train_test_split
+
 def generate_solar_data(num_samples=100):
 
     #sunlight possible in a day is gaussian distributed
@@ -60,7 +63,7 @@ def generate_solar_data(num_samples=100):
         temp = np.random.randn()*temp_std + temp_mean + temp_sun_slope*sun + weather_effect_on_temp[weather]
 
         #generate sample for clean or not clean
-        clean = 1 - int(np.random.rand() < clean_p)
+        clean = int(np.random.rand() < clean_p)
         
         #generate number of rabbits
         rabbits = np.random.poisson(rabbits_rate)
@@ -188,8 +191,91 @@ def data_frame_to_matrix(df, dependent_column, categorical_columns=[]):
 
     return X,y,col_names
 
+def example3():
+
+    #generate the dataset 
+    df = generate_solar_data(num_samples=1000)
+
+    #convert Pandas DataFrame to a feature matrix
+    X,y,col_names = data_frame_to_matrix(df, 'energy', ['weather'])
+
+    #split into training and test sets
+    Xtrain,Xtest,ytrain,ytest = train_test_split(X, y, test_size=0.5)
+
+
+def example4():
+    #generate the dataset 
+    df = generate_solar_data(num_samples=1000)
+
+    #convert Pandas DataFrame to a feature matrix
+    X,y,col_names = data_frame_to_matrix(df, 'energy', ['weather'])
+
+    #split into training and test sets
+    Xtrain,Xtest,ytrain,ytest = train_test_split(X, y, test_size=0.5)
+
+    #create a Ridge object
+    rr = Ridge()
+
+    #fit the training data
+    rr.fit(Xtrain, ytrain)
+
+    #print out the weights and their names
+    for weight,cname in zip(rr.coef_, col_names):
+        print "{}: {:.6f}".format(cname, weight)
+    print "Intercept: {:.6f}".format(rr.intercept_)
+
+    #print out the R-squared on the test set
+    r2 = rr.score(Xtest, ytest)
+    print "R-squared: {:.2f}".format(r2)
+
+
+def run_full_example(df, ridge_alpha=1.0, test_set_fraction=0.5):
+    
+    #convert Pandas DataFrame to a feature matrix
+    X,y,col_names = data_frame_to_matrix(df, 'energy', ['weather'])
+
+    #split into training and test sets
+    Xtrain,Xtest,ytrain,ytest = train_test_split(X, y, test_size=test_set_fraction)
+    print '# of training samples: {}'.format(len(ytrain))
+    print '# of test samples: {}'.format(len(ytest))
+    print 'alpha: {:.2f}'.format(ridge_alpha)    
+    print ''
+
+    #create a Ridge object
+    rr = Ridge(alpha=ridge_alpha)
+
+    #fit the training data
+    rr.fit(Xtrain, ytrain)
+
+    #print out the weights and their names
+    for weight,cname in zip(rr.coef_, col_names):
+        print "{}: {:.6f}".format(cname, weight)
+    print "Intercept: {:.6f}".format(rr.intercept_)
+    print ''
+
+    #compute the prediction on the test set
+    ypred = rr.predict(Xtest)
+
+    #compute the sum-of-squares error on the test set, which is
+    #proportional to the log likelihood
+    sqerr = np.sum((ytest - ypred)**2) / len(ytest)
+    print 'Normalized Sum-of-squares Error: {:.3f}'.format(sqerr)
+
+    #compute the sum-of-squares error for a model that is just
+    #comprised of the mean on the training set
+    sqerr_mean_only = np.sum((ytest - ytrain.mean())**2) / len(ytest)
+    print 'Normalized Sum-of-squares Error for mean-only: {:.3f}'.format(sqerr_mean_only)
+
+    #print out the R-squared on the test set
+    r2 = rr.score(Xtest, ytest)
+    print "R-squared: {:.2f}".format(r2)
+    print ''    
+
 #example1()
 #example2()
+#example3()
+#example4()
+#run_full_example()
 
 plt.show()
 
