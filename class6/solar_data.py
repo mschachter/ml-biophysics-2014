@@ -271,6 +271,98 @@ def run_full_example(df, ridge_alpha=1.0, test_set_fraction=0.5):
     print "R-squared: {:.2f}".format(r2)
     print ''    
 
+
+def run_cross_validation(df, alphas_to_try=[0.1, 0.5, 1.0, 5.0, 25.0], nfolds=10):
+    """ Use k-fold cross validation to fit the weights of the solar panel data, and
+        also to determine the optimal ridge parameter.        
+    """
+
+    #import KFold from scikits
+    from sklearn.cross_validation import KFold
+
+    #keep track of the mean and std of the error for each ridge parameter
+    mean_error_per_ridge_param = list()
+    std_error_per_ridge_param = list()
+
+    #keep track of the mean weights and intercept for each ridge parameter
+    weights_per_ridge_param = list()
+    intercept_per_ridge_param = list()
+
+    #convert Pandas DataFrame to a feature matrix
+    X,y,col_names = data_frame_to_matrix(df, 'energy', ['weather'])
+    
+    #run k-fold cross validation for each ridge parameter
+    for ridge_alpha in alphas_to_try:
+        
+        #keep track of the weights and intercept computed on each fold
+        weights = list()
+        intercepts = list()
+
+        #keep track of the errors on each fold
+        errs = list()
+
+        for train_indices,test_indices in KFold(len(df), n_folds=nfolds):
+            #break the data matrix up into training and test sets
+            Xtrain, Xtest, ytrain, ytest = X[train_indices], X[test_indices], y[train_indices], y[test_indices]
+    
+            #create a Ridge object
+            rr = Ridge(alpha=ridge_alpha)
+
+            #fit the training data
+            rr.fit(Xtrain, ytrain)
+
+            #record the weights and intercept
+            weights.append(rr.coef_)
+            intercepts.append(rr.intercept_)
+
+            #compute the prediction on the test set
+            ypred = rr.predict(Xtest)
+
+            #compute and record the sum-of-squares error on the test set
+            sqerr = np.sum((ytest - ypred)**2) / len(ytest)
+            errs.append(sqerr)
+        
+        #compute the mean weight and intercept
+        weights = np.array(weights)
+        mean_weights = weights.mean(axis=0)
+        std_weights = weights.std(axis=0, ddof=1)
+        intercepts = np.array(intercepts)
+        mean_intercept = intercepts.mean()
+        std_intercept = intercepts.std(ddof=1)
+
+        #compute the mean and std of the test error
+        errs = np.array(errs)
+        mean_err = errs.mean()
+        std_err = errs.std(ddof=1)
+
+        #print out some information
+        print 'ridge_alpha={:.2f}'.format(ridge_alpha)
+        print '\t Test error: {:.3f} +/- {:.3f}'.format(mean_err, std_err)
+        print '\t Weights:'    
+        for mean_weight,std_weight,cname in zip(mean_weights, std_weights, col_names):
+            print "\t\t{}: {:.3f} +/- {:.3f}".format(cname, mean_weight, std_weight)
+        print "\tIntercept: {:.3f} +/- {:.3f}".format(mean_intercept, std_intercept)
+        print ''
+        
+        #record the mean weight and intercept
+        weights_per_ridge_param.append(mean_weights)
+        intercept_per_ridge_param.append(mean_intercept)
+        
+        #record the errors
+        mean_error_per_ridge_param.append(mean_err)
+        std_error_per_ridge_param.append(std_err)
+
+    #identify the best ridge param
+    best_index = np.argmin(mean_error_per_ridge_param)
+    best_alpha = alphas_to_try[best_index]
+    best_err = mean_error_per_ridge_param[best_index]
+    best_weights = weights_per_ridge_param[best_index]
+    best_intercept = intercept_per_ridge_param[best_index]
+      
+
+df = generate_solar_data(num_samples=1000) 
+run_cross_validation(df)
+
 #example1()
 #example2()
 #example3()
